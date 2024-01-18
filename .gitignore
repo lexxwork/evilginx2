@@ -1,3 +1,6 @@
 release/
 build/
 private/
+__debug*
+etc
+
