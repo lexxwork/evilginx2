@@ -18,6 +18,7 @@ import (
 
 var phishlets_dir = flag.String("p", "", "Phishlets directory path")
 var redirectors_dir = flag.String("t", "", "HTML redirector pages directory path")
+var static_dir = flag.String("s", "", "static content directory path")
 var debug_log = flag.Bool("debug", false, "Enable debug output")
 var developer_mode = flag.Bool("developer", false, "Enable developer mode (generates self-signed certificates for all hostnames)")
 var cfg_dir = flag.String("c", "", "Configuration directory path")
@@ -74,6 +75,18 @@ func main() {
 			}
 		}
 	}
+	if *static_dir == "" {
+		*static_dir = joinPath(exe_dir, "./static")
+		if _, err := os.Stat(*static_dir); os.IsNotExist(err) {
+			*static_dir = "/usr/share/evilginx/static/"
+			if _, err := os.Stat(*static_dir); os.IsNotExist(err) {
+				*static_dir = joinPath(exe_dir, "./static")
+			}
+		}
+	} else if filepath.IsAbs(*static_dir) {
+		*static_dir = filepath.Join(exe_dir, *static_dir)
+	}
+
 	if _, err := os.Stat(*phishlets_dir); os.IsNotExist(err) {
 		log.Fatal("provided phishlets directory path does not exist: %s", *phishlets_dir)
 		return
@@ -121,6 +134,7 @@ func main() {
 		return
 	}
 	cfg.SetRedirectorsDir(*redirectors_dir)
+	cfg.SetStaticDir(*static_dir)
 
 	db, err := database.NewDatabase(filepath.Join(*cfg_dir, "data.db"))
 	if err != nil {
