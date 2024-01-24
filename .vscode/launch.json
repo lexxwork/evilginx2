@@ -7,8 +7,8 @@
       "request": "launch",
       "mode": "debug",
       "program": "${workspaceFolder}/main.go",
-      "cwd": "/home/lexx/Projects/yahoo",
-      "args": ["-c", "/home/lexx/.evilginx", "-p", "./phishlets", "-s", "./static", "-developer", "-debug"],
+      "cwd": "${env:HOME}/Projects/yahoo",
+      "args": ["-c", "./.evilginx", "-p", "./phishlets", "-s", "./static", "-developer", "-debug"],
       // "showLog": true,
       "console": "integratedTerminal"
     }
