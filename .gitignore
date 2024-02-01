@@ -3,4 +3,4 @@ build/
 private/
 __debug*
 etc
-
+.vscode
