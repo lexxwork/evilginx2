@@ -120,7 +120,6 @@ type Phishlet struct {
 	cookieAuthTokens map[string][]*CookieAuthToken
 	bodyAuthTokens   map[string]*BodyAuthToken
 	httpAuthTokens   map[string]*HttpAuthToken
-	staticContents   map[string]*string
 	authUrls         []*regexp.Regexp
 	username         PostField
 	password         PostField
