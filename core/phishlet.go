@@ -438,7 +438,8 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 	}
 
 	content_re := regexp.MustCompile(`(^.*?)(\{content:([^}]+)\})(.*$)`)
-	content_dir := filepath.Join(filepath.Dir(p.Path), p.Name + ".content")
+	fileName := filepath.Base(p.Path)
+	content_dir := filepath.Join(filepath.Dir(p.Path), strings.TrimSuffix(fileName, filepath.Ext(fileName)) + ".content")
 
 	if fp.SubFilters != nil {
 		for _, sf := range *fp.SubFilters {
