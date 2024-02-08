@@ -238,6 +238,17 @@ type ConfigPhishlet struct {
 	Intercept   *[]ConfigIntercept `mapstructure:"intercept"`
 }
 
+func readContent(contentPath string) (string, error) {
+	if _, err := os.Stat(contentPath); os.IsNotExist(err) {
+			return "", fmt.Errorf("content file: %s does not exist", contentPath)
+	}
+	fileBytes, err := os.ReadFile(contentPath)
+	if err != nil {
+		return "", fmt.Errorf("failed reading content file: %s", err)
+	}
+	return string(fileBytes), nil
+}
+
 func NewPhishlet(site string, path string, customParams *map[string]string, cfg *Config) (*Phishlet, error) {
 	p := &Phishlet{
 		cfg: cfg,
@@ -478,15 +489,10 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 
 			content_groups := content_re.FindStringSubmatch( *sf.Replace)
 			if len(content_groups) > 0 {
-				content_path := filepath.Join(content_dir, content_groups[3])
-				if _, err := os.Stat(content_path); os.IsNotExist(err) {
-				    return fmt.Errorf("content file: %s does not exist", content_path)
+				content, error := readContent(filepath.Join(content_dir, content_groups[3]))
+				if error != nil {
+					return error
 				}
-				fileBytes, err := os.ReadFile(content_path)
-				if err != nil {
-					return fmt.Errorf("failed reading content file: %s", err)
-				}
-				content := string(fileBytes)
 				*sf.Replace = content_groups[1] + content + content_groups[4]
 			}
 
@@ -510,7 +516,17 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 			for n := range *js.TriggerPaths {
 				(*js.TriggerPaths)[n] = p.paramVal((*js.TriggerPaths)[n])
 			}
-			err := p.addJsInject(*js.TriggerDomains, *js.TriggerPaths, js.TriggerParams, p.paramVal(*js.Script))
+			script_content := js.Script
+			content_re := regexp.MustCompile(`{content:([^}]+)\}`)
+			content_groups := content_re.FindStringSubmatch(*js.Script)
+			if len(content_groups) > 0 {
+				content, error := readContent(filepath.Join(content_dir, content_groups[1]))
+				if error != nil {
+					return error
+				}
+				*script_content = content
+			}
+			err := p.addJsInject(*js.TriggerDomains, *js.TriggerPaths, js.TriggerParams, p.paramVal(*script_content))
 			if err != nil {
 				return err
 			}
@@ -1017,7 +1033,7 @@ func (p *Phishlet) addJsInject(trigger_domains []string, trigger_paths []string,
 		js.trigger_domains = append(js.trigger_domains, strings.ToLower(d))
 	}
 	for _, d := range trigger_paths {
-		re, err := regexp.Compile("^" + d + "$")
+		re, err := regexp.Compile(d)
 		if err == nil {
 			js.trigger_paths = append(js.trigger_paths, re)
 		} else {
